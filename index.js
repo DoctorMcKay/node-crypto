@@ -1,7 +1,8 @@
 var Crypto = require('crypto');
 
 exports.Cipher = {
-	"AES256CTR": 1
+	"AES256CTR": 1,
+	"AES256CTRWithHMAC": 2
 };
 
 var Flags = {
@@ -70,20 +71,44 @@ exports.encrypt = function(cipher, key, data) {
 		data = new Buffer(data, 'utf8');
 	}
 
+	var iv, cipheriv, encrypted, output, hmac, temp;
+
 	switch (cipher) {
 		case exports.Cipher.AES256CTR:
 			// Generate the IV
-			var iv = Crypto.randomBytes(16);
-			var cipheriv = Crypto.createCipheriv('aes-256-ctr', key, iv);
-			var encrypted = Buffer.concat([cipheriv.update(data), cipheriv.final()]);
+			iv = Crypto.randomBytes(16);
+			cipheriv = Crypto.createCipheriv('aes-256-ctr', key, iv);
+			encrypted = Buffer.concat([cipheriv.update(data), cipheriv.final()]);
 
-			var output = new Buffer(5 + iv.length + encrypted.length);
+			output = new Buffer(5 + iv.length + encrypted.length);
 			output.writeUInt16BE(MAGIC, 0);
 			output.writeUInt8(flags, 2);
 			output.writeUInt8(cipher, 3);
 			output.writeUInt8(iv.length, 4);
 			iv.copy(output, 5);
 			encrypted.copy(output, 5 + iv.length);
+			return output;
+
+		case exports.Cipher.AES256CTRWithHMAC:
+			iv = Crypto.randomBytes(16);
+			cipheriv = Crypto.createCipheriv('aes-256-ctr', key, iv);
+			encrypted = Buffer.concat([cipheriv.update(data), cipheriv.final()]);
+
+			temp = new Buffer(1);
+			temp.writeUInt8(flags, 0);
+
+			hmac = Crypto.createHmac('sha1', key.slice(0, 16)); // only use the first 128 bits for the hmac
+			hmac.update(Buffer.concat([temp, iv, encrypted]));
+			hmac = hmac.digest();
+
+			output = new Buffer(5 + iv.length + encrypted.length + hmac.length);
+			output.writeUInt16BE(MAGIC, 0);
+			output.writeUInt8(flags, 2);
+			output.writeUInt8(cipher, 3);
+			output.writeUInt8(iv.length, 4);
+			iv.copy(output, 5);
+			encrypted.copy(output, 5 + iv.length);
+			hmac.copy(output, 5 + iv.length + encrypted.length);
 			return output;
 	}
 
@@ -109,11 +134,36 @@ exports.decrypt = function(key, data) {
 	var flags = data.readUInt8(2);
 	var cipher = data.readUInt8(3);
 
+	var iv, encrypted, hmac, decipher, decrypted;
+
 	switch (cipher) {
 		case exports.Cipher.AES256CTR:
-			var ivLength = data.readUInt8(4);
-			var decipher = Crypto.createDecipheriv('aes-256-ctr', key, data.slice(5, 5 + ivLength));
-			var decrypted = Buffer.concat([decipher.update(data.slice(5 + ivLength)), decipher.final()]);
+			iv = data.slice(5, 5 + data.readUInt8(4));
+			encrypted = data.slice(5 + iv.length);
+
+			decipher = Crypto.createDecipheriv('aes-256-ctr', key, iv);
+			decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+			if (flags & Flags.IsString) {
+				return decrypted.toString('utf8');
+			}
+
+			return decrypted;
+
+		case exports.Cipher.AES256CTRWithHMAC:
+			// Verify the HMAC first
+			iv = data.slice(5, 5 + data.readUInt8(4));
+			encrypted = data.slice(5 + iv.length, data.length - 20);
+
+			hmac = Crypto.createHmac('sha1', key.slice(0, 16));
+			hmac.update(Buffer.concat([data.slice(2, 3), iv, encrypted]));
+			hmac = hmac.digest();
+
+			if (!hmac.equals(data.slice(data.length - 20))) {
+				throw new Error("Mismatching HMAC");
+			}
+
+			decipher = Crypto.createDecipheriv('aes-256-ctr', key, iv);
+			decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
 			if (flags & Flags.IsString) {
 				return decrypted.toString('utf8');
 			}
