@@ -132,28 +132,24 @@ exports.decrypt = function(key, data, expectAuthentication) {
 
 	switch (cipher) {
 		case Cipher.AES256CTRObsoleteDoNotUse:
-			if (expectAuthentication) {
+		case Cipher.AES256CTRWithHMAC:
+			var hasHmac = cipher == Cipher.AES256CTRWithHMAC;
+			if (expectAuthentication && !hasHmac) {
 				throw new Error("Expected authentication, but data was encrypted with AES256CTR without HMAC");
 			}
 
 			iv = data.slice(5, 5 + data.readUInt8(4));
-			encrypted = data.slice(5 + iv.length);
+			encrypted = data.slice(5 + iv.length, hasHmac ? data.length - 20 : undefined);
 
-			decipher = Crypto.createDecipheriv('aes-256-ctr', key, iv);
-			decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-			break;
-
-		case Cipher.AES256CTRWithHMAC:
 			// Verify the HMAC first
-			iv = data.slice(5, 5 + data.readUInt8(4));
-			encrypted = data.slice(5 + iv.length, data.length - 20);
+			if (hasHmac) {
+				hmac = Crypto.createHmac('sha1', key.slice(0, 16));
+				hmac.update(Buffer.concat([data.slice(2, 3), iv, encrypted]));
+				hmac = hmac.digest();
 
-			hmac = Crypto.createHmac('sha1', key.slice(0, 16));
-			hmac.update(Buffer.concat([data.slice(2, 3), iv, encrypted]));
-			hmac = hmac.digest();
-
-			if (!hmac.equals(data.slice(data.length - 20))) {
-				throw new Error("Mismatching HMAC");
+				if (!hmac.equals(data.slice(data.length - 20))) {
+					throw new Error("Mismatching HMAC");
+				}
 			}
 
 			decipher = Crypto.createDecipheriv('aes-256-ctr', key, iv);
