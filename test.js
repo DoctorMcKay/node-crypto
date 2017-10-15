@@ -22,7 +22,7 @@ function encryptAndDecryptTest(key, data, testType) {
 	}
 
 	// Make sure it decrypts
-	var decrypted = McCrypto.decrypt(key, encrypted);
+	var decrypted = McCrypto.decrypt(key, encrypted, true);
 	var isEqual = decrypted.equals ? decrypted.equals(data) : decrypted == data;
 	if (!isEqual) {
 		console.log(decrypted);
