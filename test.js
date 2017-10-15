@@ -3,10 +3,10 @@ var McCrypto = require('./index.js');
 legacyAES256CTRTest();
 expectAuthenticationTest();
 
-var testData = "The quick brown fox jumps over the lazy dog.";
 var testKey = "foo bar baz";
 
 // Ensure everything works with strings
+var testData = "The quick brown fox jumps over the lazy dog.";
 encryptAndDecryptTest(testKey, testData, "strings");
 
 
