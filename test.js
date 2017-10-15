@@ -34,7 +34,7 @@ function encryptAndDecryptTest(data, testType) {
 		throw new Error("Type of decrypted data does not match type of input data!");
 	}
 
-	console.log("Everything seems fine with " + testType + ": " + decrypted);
+	console.log("Everything seems fine with " + testType + ": " + decrypted.toString('hex'));
 }
 
 function expectAuthenticationTest() {
