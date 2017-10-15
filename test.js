@@ -1,5 +1,6 @@
 var McCrypto = require('./index.js');
 
+legacyAES256CTRTest();
 expectAuthenticationTest();
 
 var testData = "The quick brown fox jumps over the lazy dog.";
@@ -37,7 +38,7 @@ function encryptAndDecryptTest(key, data, testType) {
 }
 
 function expectAuthenticationTest() {
-	var encrypted = new Buffer("fade010110b5e521d8e1055d3d2620a23efe12c0b8db9ce86282c000f68ad358", "hex");
+	var encrypted = new Buffer("fade01011093480061d6340d2c298bfc5b4e98d661d1957a647b1045088f14592fd35784c8e2a32727ff639276092cd45e7412b47d7d21eebec6944b778943fc6b", "hex");
 	try {
 		McCrypto.decrypt("foo bar baz", encrypted, true);
 	} catch (ex) {
@@ -50,4 +51,13 @@ function expectAuthenticationTest() {
 	}
 
 	throw Error("expectAuthentication failed");
+}
+
+function legacyAES256CTRTest() {
+	var encrypted = new Buffer("fade01011093480061d6340d2c298bfc5b4e98d661d1957a647b1045088f14592fd35784c8e2a32727ff639276092cd45e7412b47d7d21eebec6944b778943fc6b", "hex");
+	if (McCrypto.decrypt("foo bar baz", encrypted) != "The quick brown fox jumps over the lazy dog.") {
+		throw new Error("Legacy AES256CTR decryption failed");
+	} else {
+		console.log("Legacy AES256CTR decryption passed");
+	}
 }
