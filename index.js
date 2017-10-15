@@ -1,6 +1,6 @@
 const Crypto = require('crypto');
 
-exports.Cipher = {
+const Cipher = exports.Cipher = {
 	"AES256CTRObsoleteDoNotUse": 1,
 	"AES256CTR": 2, // formerly 1; now is an alias for AES256CTRWithHMAC
 	"AES256CTRWithHMAC": 2 // Encrypt-then-MAC
@@ -31,8 +31,8 @@ exports.isWellFormed = function(buffer) {
 	var cipher = buffer.readUInt8(3);
 	var cipherValid = false;
 
-	for (var i in exports.Cipher) {
-		if (exports.Cipher.hasOwnProperty(i) && exports.Cipher[i] == cipher) {
+	for (var i in Cipher) {
+		if (Cipher.hasOwnProperty(i) && Cipher[i] == cipher) {
 			cipherValid = true;
 			break;
 		}
@@ -43,7 +43,7 @@ exports.isWellFormed = function(buffer) {
 	}
 
 	// Cipher-specific checks
-	if ([exports.Cipher.AES256CTRObsoleteDoNotUse, exports.Cipher.AES256CTRWithHMAC].indexOf(cipher) == -1) {
+	if ([Cipher.AES256CTRObsoleteDoNotUse, Cipher.AES256CTRWithHMAC].indexOf(cipher) == -1) {
 		// Needs a 128-bit (16 bytes) IV
 		if (buffer.length < 20) {
 			return false;
@@ -75,7 +75,7 @@ exports.encrypt = function(cipher, key, data) {
 	var iv, cipheriv, encrypted, output, hmac, temp;
 
 	switch (cipher) {
-		case exports.Cipher.AES256CTRWithHMAC:
+		case Cipher.AES256CTRWithHMAC:
 			iv = Crypto.randomBytes(16);
 			cipheriv = Crypto.createCipheriv('aes-256-ctr', key, iv);
 			encrypted = Buffer.concat([cipheriv.update(data), cipheriv.final()]);
@@ -131,7 +131,7 @@ exports.decrypt = function(key, data, expectAuthentication) {
 	var iv, encrypted, hmac, decipher, decrypted;
 
 	switch (cipher) {
-		case exports.Cipher.AES256CTRObsoleteDoNotUse:
+		case Cipher.AES256CTRObsoleteDoNotUse:
 			if (expectAuthentication) {
 				throw new Error("Expected authentication, but data was encrypted with AES256CTR without HMAC");
 			}
@@ -143,7 +143,7 @@ exports.decrypt = function(key, data, expectAuthentication) {
 			decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
 			break;
 
-		case exports.Cipher.AES256CTRWithHMAC:
+		case Cipher.AES256CTRWithHMAC:
 			// Verify the HMAC first
 			iv = data.slice(5, 5 + data.readUInt8(4));
 			encrypted = data.slice(5 + iv.length, data.length - 20);
