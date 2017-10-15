@@ -1,11 +1,11 @@
-var Crypto = require('crypto');
+const Crypto = require('crypto');
 
 exports.Cipher = {
 	"AES256CTR": 1,
-	"AES256CTRWithHMAC": 2
+	"AES256CTRWithHMAC": 2 // Encrypt-then-MAC
 };
 
-var Flags = {
+const Flags = {
 	"IsString": (1 << 0)
 };
 
@@ -42,7 +42,7 @@ exports.isWellFormed = function(buffer) {
 	}
 
 	// Cipher-specific checks
-	if (cipher == exports.Cipher.AES256CTR) {
+	if ([exports.Cipher.AES256CTR, exports.Cipher.AES256CTRWithHMAC].indexOf(cipher) == -1) {
 		// Needs a 128-bit (16 bytes) IV
 		if (buffer.length < 20) {
 			return false;
@@ -80,6 +80,12 @@ exports.encrypt = function(cipher, key, data) {
 			cipheriv = Crypto.createCipheriv('aes-256-ctr', key, iv);
 			encrypted = Buffer.concat([cipheriv.update(data), cipheriv.final()]);
 
+			// 2 bytes = magic
+			// 1 byte = flags
+			// 1 byte = cipher ID
+			// 1 byte = IV length
+			// variable = IV
+			// variable = ciphertext
 			output = new Buffer(5 + iv.length + encrypted.length);
 			output.writeUInt16BE(MAGIC, 0);
 			output.writeUInt8(flags, 2);
@@ -101,6 +107,13 @@ exports.encrypt = function(cipher, key, data) {
 			hmac.update(Buffer.concat([temp, iv, encrypted]));
 			hmac = hmac.digest();
 
+			// 2 bytes = magic
+			// 1 byte = flags
+			// 1 byte = cipher ID
+			// 1 byte = IV length
+			// variable = IV
+			// variable = ciphertext
+			// 20 bytes = HMAC
 			output = new Buffer(5 + iv.length + encrypted.length + hmac.length);
 			output.writeUInt16BE(MAGIC, 0);
 			output.writeUInt8(flags, 2);
@@ -119,8 +132,9 @@ exports.encrypt = function(cipher, key, data) {
  * Decrypt some data.
  * @param {string|Buffer} key - Either a Buffer or a UTF-8 string
  * @param {Buffer} data - The encrypted package
+ * @param {boolean} [expectAuthentication=false] - If true, will throw an Error if the data is not authenticated (e.g. with HMAC)
  */
-exports.decrypt = function(key, data) {
+exports.decrypt = function(key, data, expectAuthentication) {
 	if (!exports.isWellFormed(data)) {
 		throw new Error("Invalid input data");
 	}
@@ -138,16 +152,16 @@ exports.decrypt = function(key, data) {
 
 	switch (cipher) {
 		case exports.Cipher.AES256CTR:
+			if (expectAuthentication) {
+				throw new Error("Expected authentication, but data was encrypted with AES256CTR without HMAC");
+			}
+
 			iv = data.slice(5, 5 + data.readUInt8(4));
 			encrypted = data.slice(5 + iv.length);
 
 			decipher = Crypto.createDecipheriv('aes-256-ctr', key, iv);
 			decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-			if (flags & Flags.IsString) {
-				return decrypted.toString('utf8');
-			}
-
-			return decrypted;
+			break;
 
 		case exports.Cipher.AES256CTRWithHMAC:
 			// Verify the HMAC first
@@ -164,12 +178,15 @@ exports.decrypt = function(key, data) {
 
 			decipher = Crypto.createDecipheriv('aes-256-ctr', key, iv);
 			decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-			if (flags & Flags.IsString) {
-				return decrypted.toString('utf8');
-			}
+			break;
 
-			return decrypted;
+		default:
+			throw new Error("Unknown cipher type");
 	}
 
-	throw new Error("Unknown cipher type");
+	if (flags & Flags.IsString) {
+		return decrypted.toString('utf8');
+	} else {
+		return decrypted;
+	}
 };

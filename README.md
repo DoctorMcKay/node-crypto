@@ -34,14 +34,21 @@ All remaining data is left up to the specific cipher.
     - `ivLength` - A 1-byte value containing the length of the IV
     - `iv` - The randomly-generated binary IV (length given by `ivLength`)
     - `ciphertext` - The encrypted ciphertext
+- `AES256CTRWithHMAC`
+    - `ivLength` - A 1-byte value containing the length of the IV
+    - `iv` - The randomly-generated binary IV (length given by `ivLength`)
+    - `ciphertext` - The encrypted ciphertext
+    - `hmac` - The HMAC (20 bytes)
 
 The `key` may be interpreted differently depending on the cipher.
 
 - `AES256CTR` - The key is hashed with SHA256 and the binary hash is used as the key
+- `AES256CTRWithHMAC` - Same as above
 
-### decrypt(key, data)
+### decrypt(key, data[, expectAuthentication])
 - `key` - Either a string or a `Buffer` containing your encryption key (should match what was given to encrypt())
 - `data` - A `Buffer` containing your encrypted data (should be identical to what was returned by encrypt())
+- `expectAuthentication` - Optional. If `true`, this will throw an `Error` if the data is not authenticated (e.g. with HMAC)
 
 Decrypts a buffer and returns the plaintext. If you originally passed a string to `encrypt()`, this will return a
 UTF-8 string. Otherwise, it will return a `Buffer`.
