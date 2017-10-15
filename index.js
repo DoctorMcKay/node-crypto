@@ -131,7 +131,7 @@ exports.decrypt = function(key, data, expectAuthentication) {
 	var iv, encrypted, hmac, decipher, decrypted;
 
 	switch (cipher) {
-		case exports.Cipher.AES256CTR:
+		case exports.Cipher.AES256CTRObsoleteDoNotUse:
 			if (expectAuthentication) {
 				throw new Error("Expected authentication, but data was encrypted with AES256CTR without HMAC");
 			}
