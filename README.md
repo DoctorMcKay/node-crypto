@@ -30,10 +30,6 @@ here is the structure:
 
 All remaining data is left up to the specific cipher.
 
-- `AES256CTR`
-    - `ivLength` - A 1-byte value containing the length of the IV
-    - `iv` - The randomly-generated binary IV (length given by `ivLength`)
-    - `ciphertext` - The encrypted ciphertext
 - `AES256CTRWithHMAC`
     - `ivLength` - A 1-byte value containing the length of the IV
     - `iv` - The randomly-generated binary IV (length given by `ivLength`)
@@ -42,8 +38,7 @@ All remaining data is left up to the specific cipher.
 
 The `key` may be interpreted differently depending on the cipher.
 
-- `AES256CTR` - The key is hashed with SHA256 and the binary hash is used as the key
-- `AES256CTRWithHMAC` - Same as above
+- `AES256CTRWithHMAC` - The key is hashed with SHA256 and the binary hash is used as the key
 
 ### decrypt(key, data[, expectAuthentication])
 - `key` - Either a string or a `Buffer` containing your encryption key (should match what was given to encrypt())
