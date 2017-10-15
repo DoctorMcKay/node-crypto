@@ -1,7 +1,8 @@
 const Crypto = require('crypto');
 
 exports.Cipher = {
-	"AES256CTR": 1,
+	"AES256CTRObsoleteDoNotUse": 1,
+	"AES256CTR": 2, // formerly 1; now is an alias for AES256CTRWithHMAC
 	"AES256CTRWithHMAC": 2 // Encrypt-then-MAC
 };
 
@@ -42,7 +43,7 @@ exports.isWellFormed = function(buffer) {
 	}
 
 	// Cipher-specific checks
-	if ([exports.Cipher.AES256CTR, exports.Cipher.AES256CTRWithHMAC].indexOf(cipher) == -1) {
+	if ([exports.Cipher.AES256CTRObsoleteDoNotUse, exports.Cipher.AES256CTRWithHMAC].indexOf(cipher) == -1) {
 		// Needs a 128-bit (16 bytes) IV
 		if (buffer.length < 20) {
 			return false;
@@ -74,27 +75,6 @@ exports.encrypt = function(cipher, key, data) {
 	var iv, cipheriv, encrypted, output, hmac, temp;
 
 	switch (cipher) {
-		case exports.Cipher.AES256CTR:
-			// Generate the IV
-			iv = Crypto.randomBytes(16);
-			cipheriv = Crypto.createCipheriv('aes-256-ctr', key, iv);
-			encrypted = Buffer.concat([cipheriv.update(data), cipheriv.final()]);
-
-			// 2 bytes = magic
-			// 1 byte = flags
-			// 1 byte = cipher ID
-			// 1 byte = IV length
-			// variable = IV
-			// variable = ciphertext
-			output = new Buffer(5 + iv.length + encrypted.length);
-			output.writeUInt16BE(MAGIC, 0);
-			output.writeUInt8(flags, 2);
-			output.writeUInt8(cipher, 3);
-			output.writeUInt8(iv.length, 4);
-			iv.copy(output, 5);
-			encrypted.copy(output, 5 + iv.length);
-			return output;
-
 		case exports.Cipher.AES256CTRWithHMAC:
 			iv = Crypto.randomBytes(16);
 			cipheriv = Crypto.createCipheriv('aes-256-ctr', key, iv);
